@@ -1,0 +1,163 @@
+version: '3.8'
+
+services:
+  orchestrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: arc_orchestrator
+    ports:
+      - "8000:8000"
+    environment:
+      - LOG_LEVEL=INFO
+      - HEALTH_CHECK_INTERVAL=30
+    volumes:
+      - ./config:/app/config
+      - ./logs:/app/logs
+      - /var/run/docker.sock:/var/run/docker.sock  # For managing other containers
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - arc_detection_network
+    restart: unless-stopped
+
+  cache_manager:
+    build:
+      context: ../cache_manager
+      dockerfile: Dockerfile
+    container_name: arc_cache_manager
+    ports:
+      - "5003:5003"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - LOG_LEVEL=INFO
+    depends_on:
+      - redis
+    networks:
+      - arc_detection_network
+    restart: unless-stopped
+
+  data_processor:
+    build:
+      context: ../data_processor
+      dockerfile: Dockerfile
+    container_name: arc_data_processor
+    ports:
+      - "5000:5000"
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/arc_detection
+      - CACHE_URL=redis://redis:6379
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - postgres
+      - redis
+      - cache_manager
+    networks:
+      - arc_detection_network
+    restart: unless-stopped
+
+  transient_viewer:
+    build:
+      context: ../transient_viewer
+      dockerfile: Dockerfile
+    container_name: arc_transient_viewer
+    ports:
+      - "5001:5001"
+    environment:
+      - DATA_PROCESSOR_URL=http://data_processor:5000
+      - LOG_LEVEL=INFO
+    depends_on:
+      - data_processor
+    networks:
+      - arc_detection_network
+    restart: unless-stopped
+
+  segment_visualizer:
+    build:
+      context: ../segment_visualizer
+      dockerfile: Dockerfile
+    container_name: arc_segment_visualizer
+    ports:
+      - "5002:5002"
+    environment:
+      - DATA_PROCESSOR_URL=http://data_processor:5000
+      - CACHE_URL=redis://redis:6379
+      - LOG_LEVEL=INFO
+    depends_on:
+      - data_processor
+      - cache_manager
+    networks:
+      - arc_detection_network
+    restart: unless-stopped
+
+  # Infrastructure services
+  redis:
+    image: redis:7-alpine
+    container_name: arc_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - arc_detection_network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: arc_postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=arc_detection
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - arc_detection_network
+    restart: unless-stopped
+
+  # Monitoring and observability
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: arc_prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - arc_detection_network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: arc_grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/datasources:/etc/grafana/provisioning/datasources
+    depends_on:
+      - prometheus
+    networks:
+      - arc_detection_network
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  postgres_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  arc_detection_network:
+    driver: bridge

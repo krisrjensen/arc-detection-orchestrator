@@ -1,0 +1,55 @@
+{
+  "services": {
+    "data_processor": {
+      "port": 5000,
+      "health_endpoint": "/health",
+      "description": "Main data processing service",
+      "dependencies": ["cache_manager"],
+      "startup_timeout": 60,
+      "max_restart_attempts": 3
+    },
+    "transient_viewer": {
+      "port": 5001,
+      "health_endpoint": "/health",
+      "description": "Transient visualization service",
+      "dependencies": ["data_processor"],
+      "startup_timeout": 30,
+      "max_restart_attempts": 3
+    },
+    "segment_visualizer": {
+      "port": 5002,
+      "health_endpoint": "/health",
+      "description": "Data segment visualization service",
+      "dependencies": ["data_processor", "cache_manager"],
+      "startup_timeout": 30,
+      "max_restart_attempts": 3
+    },
+    "cache_manager": {
+      "port": 5003,
+      "health_endpoint": "/health",
+      "description": "Caching and data management service",
+      "dependencies": [],
+      "startup_timeout": 30,
+      "max_restart_attempts": 3
+    }
+  },
+  "startup_order": [
+    "cache_manager",
+    "data_processor", 
+    "transient_viewer",
+    "segment_visualizer"
+  ],
+  "shutdown_timeout": 30,
+  "health_check_interval": 30,
+  "max_restart_attempts": 3,
+  "monitoring": {
+    "enabled": true,
+    "prometheus_port": 9090,
+    "grafana_port": 3000
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    "file": "/app/logs/orchestrator.log"
+  }
+}
