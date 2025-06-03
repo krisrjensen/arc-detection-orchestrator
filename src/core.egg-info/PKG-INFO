@@ -1,0 +1,20 @@
+Metadata-Version: 2.1
+Name: core
+Version: 0.1.0
+Summary: Core library for arc detection and data processing
+Home-page: UNKNOWN
+Author: Kristophor Jensen
+Author-email: your.email@example.com
+License: UNKNOWN
+Platform: UNKNOWN
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Science/Research
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Requires-Python: >=3.9
+
+Core library providing fundamental components for processing electrical arc data, including data loading, processing, metrics calculation, and visualization.
+
