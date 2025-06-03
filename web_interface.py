@@ -25,7 +25,7 @@ UNIVERSAL_COLORS = {
 }
 
 class RegistryWebInterface:
-    def __init__(self, registry: ServiceRegistry, port: int = 8000):
+    def __init__(self, registry: ServiceRegistry, port: int = 4080):
         self.app = Flask(__name__)
         self.registry = registry
         self.port = port

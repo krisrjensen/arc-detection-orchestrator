@@ -28,7 +28,7 @@ class SystemOrchestrator:
     def __init__(self, config_file: Optional[str] = None):
         self.config = self._load_config(config_file)
         self.registry = ServiceRegistry(health_check_interval=30)
-        self.web_interface = RegistryWebInterface(self.registry, port=8000)
+        self.web_interface = RegistryWebInterface(self.registry, port=4080)
         self.logger = logging.getLogger(__name__)
         self.running = False
         self.processes: Dict[str, subprocess.Popen] = {}
@@ -191,7 +191,7 @@ class SystemOrchestrator:
         web_thread = threading.Thread(target=self.web_interface.run, kwargs={'debug': False})
         web_thread.daemon = True
         web_thread.start()
-        self.logger.info("Web interface started on http://localhost:8000")
+        self.logger.info("Web interface started on http://localhost:4080")
         
         # Start all services
         if self.start_all_services():

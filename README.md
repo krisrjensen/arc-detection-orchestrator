@@ -36,7 +36,7 @@ python orchestrator.py --config config/orchestrator.json
 
 ## Web Dashboard
 
-Access the orchestrator dashboard at: http://localhost:8000
+Access the orchestrator dashboard at: http://localhost:4080
 - Real-time service status monitoring
 - Health check functionality
 - Service discovery tools
@@ -58,7 +58,7 @@ The `scripts/` directory contains startup and shutdown scripts for individual se
 
 ## Monitoring
 
-- **Web Dashboard**: http://localhost:8000
+- **Web Dashboard**: http://localhost:4080
 - **Prometheus**: http://localhost:9090
 - **Grafana**: http://localhost:3000 (admin/admin)
-- **Orchestrator Status**: http://localhost:8000/api/services
+- **Orchestrator Status**: http://localhost:4080/api/services

@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile
     container_name: arc_orchestrator
     ports:
-      - "8000:8000"
+      - "4080:4080"
     environment:
       - LOG_LEVEL=INFO
       - HEALTH_CHECK_INTERVAL=30
