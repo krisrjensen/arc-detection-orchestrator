@@ -9,6 +9,7 @@ for the distributed arc detection system.
 import json
 import logging
 import time
+import requests
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
 from datetime import datetime, timedelta
@@ -39,16 +40,32 @@ class ServiceRegistry:
         self.running = False
         self.health_monitor_thread = None
         
-    def register_service(self, service_info: ServiceInfo) -> bool:
-        """Register a new service"""
-        try:
-            service_info.last_heartbeat = datetime.now()
-            self.services[service_info.name] = service_info
-            self.logger.info(f"Registered service: {service_info.name} at {service_info.host}:{service_info.port}")
-            return True
-        except Exception as e:
-            self.logger.error(f"Failed to register service {service_info.name}: {e}")
-            return False
+    def register_service(self, service_info: ServiceInfo, retry_count: int = 3) -> bool:
+        """Register a new service with retry logic"""
+        for attempt in range(retry_count):
+            try:
+                # Verify service is reachable before registering
+                if self._verify_service_health(service_info):
+                    service_info.last_heartbeat = datetime.now()
+                    service_info.status = "healthy"
+                    self.services[service_info.name] = service_info
+                    self.logger.info(f"Registered service: {service_info.name} at {service_info.host}:{service_info.port}")
+                    return True
+                else:
+                    self.logger.warning(f"Service {service_info.name} failed health check, attempt {attempt + 1}/{retry_count}")
+                    if attempt < retry_count - 1:
+                        time.sleep(2)  # Wait before retry
+            except Exception as e:
+                self.logger.error(f"Failed to register service {service_info.name}, attempt {attempt + 1}: {e}")
+                if attempt < retry_count - 1:
+                    time.sleep(2)
+        
+        # Register anyway but mark as unhealthy
+        service_info.last_heartbeat = datetime.now()
+        service_info.status = "unhealthy"
+        self.services[service_info.name] = service_info
+        self.logger.warning(f"Registered service {service_info.name} as unhealthy after {retry_count} attempts")
+        return False
     
     def deregister_service(self, service_name: str) -> bool:
         """Remove a service from the registry"""
@@ -112,6 +129,42 @@ class ServiceRegistry:
                 time.sleep(self.health_check_interval)
             except Exception as e:
                 self.logger.error(f"Error in health monitoring loop: {e}")
+    
+    def _verify_service_health(self, service_info: ServiceInfo, timeout: int = 5) -> bool:
+        """Verify a service is healthy by calling its health endpoint"""
+        try:
+            health_url = f"http://{service_info.host}:{service_info.port}{service_info.health_endpoint}"
+            response = requests.get(health_url, timeout=timeout)
+            return response.status_code == 200
+        except Exception as e:
+            self.logger.debug(f"Health check failed for {service_info.name}: {e}")
+            return False
+    
+    def discover_services(self, port_range: range = range(5000, 5010)) -> List[ServiceInfo]:
+        """Discover services running on common ports"""
+        discovered = []
+        for port in port_range:
+            try:
+                # Try common health endpoints
+                for endpoint in ["/health", "/status", "/ping"]:
+                    try:
+                        response = requests.get(f"http://localhost:{port}{endpoint}", timeout=2)
+                        if response.status_code == 200:
+                            service_name = f"discovered_service_{port}"
+                            discovered.append(ServiceInfo(
+                                name=service_name,
+                                host="localhost",
+                                port=port,
+                                health_endpoint=endpoint,
+                                status="discovered"
+                            ))
+                            self.logger.info(f"Discovered service on port {port} with endpoint {endpoint}")
+                            break
+                    except:
+                        continue
+            except Exception as e:
+                self.logger.debug(f"Port scan failed for {port}: {e}")
+        return discovered
     
     def _check_all_services_health(self):
         """Check health of all registered services"""

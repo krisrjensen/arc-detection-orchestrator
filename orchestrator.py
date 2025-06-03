@@ -19,6 +19,7 @@ from typing import Dict, List, Optional
 from datetime import datetime
 
 from service_registry import ServiceRegistry, ServiceInfo, KNOWN_SERVICES
+from web_interface import RegistryWebInterface
 
 
 class SystemOrchestrator:
@@ -27,6 +28,7 @@ class SystemOrchestrator:
     def __init__(self, config_file: Optional[str] = None):
         self.config = self._load_config(config_file)
         self.registry = ServiceRegistry(health_check_interval=30)
+        self.web_interface = RegistryWebInterface(self.registry, port=8000)
         self.logger = logging.getLogger(__name__)
         self.running = False
         self.processes: Dict[str, subprocess.Popen] = {}
@@ -183,6 +185,13 @@ class SystemOrchestrator:
         
         # Start service registry health monitoring
         self.registry.start_health_monitoring()
+        
+        # Start web interface in a separate thread
+        import threading
+        web_thread = threading.Thread(target=self.web_interface.run, kwargs={'debug': False})
+        web_thread.daemon = True
+        web_thread.start()
+        self.logger.info("Web interface started on http://localhost:8000")
         
         # Start all services
         if self.start_all_services():
